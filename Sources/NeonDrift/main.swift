@@ -1,4 +1,5 @@
 import AppKit
+import IOKit.ps
 import MetalKit
 import ServiceManagement
 import SwiftUI
@@ -76,6 +77,105 @@ struct ExportedSettings: Codable {
     var defaultConfiguration: WallpaperConfiguration
     var displayOverrides: [String: WallpaperConfiguration]
     var generalPreferences: GeneralPreferences
+    var automationRules: AutomationRules
+
+    init(
+        defaultConfiguration: WallpaperConfiguration,
+        displayOverrides: [String: WallpaperConfiguration],
+        generalPreferences: GeneralPreferences,
+        automationRules: AutomationRules
+    ) {
+        self.defaultConfiguration = defaultConfiguration
+        self.displayOverrides = displayOverrides
+        self.generalPreferences = generalPreferences
+        self.automationRules = automationRules
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = (try? c.decode(Int.self, forKey: .version)) ?? 2
+        defaultConfiguration = try c.decode(WallpaperConfiguration.self, forKey: .defaultConfiguration)
+        displayOverrides = try c.decode([String: WallpaperConfiguration].self, forKey: .displayOverrides)
+        generalPreferences = try c.decode(GeneralPreferences.self, forKey: .generalPreferences)
+        automationRules = (try? c.decode(AutomationRules.self, forKey: .automationRules)) ?? .default
+    }
+}
+
+enum BuiltInPreset: String, CaseIterable, Identifiable {
+    case work, chill, night, presentation
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .work: "Work"
+        case .chill: "Chill"
+        case .night: "Night"
+        case .presentation: "Presentation"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .work: "briefcase"
+        case .chill: "cup.and.saucer"
+        case .night: "moon.stars"
+        case .presentation: "rectangle.on.rectangle"
+        }
+    }
+
+    var configuration: WallpaperConfiguration {
+        switch self {
+        case .work:
+            return WallpaperConfiguration(theme: .ambientHaze, frameRate: 30, animationSpeed: 0.5, tuning: PlasmaTheme.ambientHaze.recommendedTuning)
+        case .chill:
+            return WallpaperConfiguration(theme: .velvetRose, frameRate: 60, animationSpeed: 0.9, tuning: PlasmaTheme.velvetRose.recommendedTuning)
+        case .night:
+            return WallpaperConfiguration(theme: .midnightBlush, frameRate: 30, animationSpeed: 0.55, tuning: PlasmaTheme.midnightBlush.recommendedTuning)
+        case .presentation:
+            return WallpaperConfiguration(theme: .monoMist, frameRate: 24, animationSpeed: 0.25, tuning: PlasmaTheme.monoMist.recommendedTuning)
+        }
+    }
+}
+
+struct TimeOfDaySchedule: Codable, Equatable {
+    var morningTheme: PlasmaTheme
+    var afternoonTheme: PlasmaTheme
+    var eveningTheme: PlasmaTheme
+    var nightTheme: PlasmaTheme
+
+    static let `default` = TimeOfDaySchedule(
+        morningTheme: .minimalArc,
+        afternoonTheme: .velvetRose,
+        eveningTheme: .synthwaveRun,
+        nightTheme: .midnightBlush
+    )
+
+    func themeForNow() -> PlasmaTheme {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 6..<12: return morningTheme
+        case 12..<18: return afternoonTheme
+        case 18..<22: return eveningTheme
+        default: return nightTheme
+        }
+    }
+}
+
+struct AutomationRules: Codable, Equatable {
+    var timeOfDayEnabled: Bool
+    var schedule: TimeOfDaySchedule
+    var powerAdaptiveEnabled: Bool
+    var onBatteryTheme: PlasmaTheme
+    var onChargerTheme: PlasmaTheme
+
+    static let `default` = AutomationRules(
+        timeOfDayEnabled: false,
+        schedule: .default,
+        powerAdaptiveEnabled: false,
+        onBatteryTheme: .ambientHaze,
+        onChargerTheme: .velvetRose
+    )
 }
 
 struct DisplayInfo: Identifiable, Hashable {
@@ -683,11 +783,13 @@ final class WallpaperSettingsStore: ObservableObject {
     private let defaultConfigurationKey = "DefaultWallpaperConfiguration"
     private let displayOverridesKey = "DisplayWallpaperOverrides"
     private let generalPreferencesKey = "GeneralPreferences"
+    private let automationRulesKey = "AutomationRules"
 
     @Published private(set) var defaultConfiguration: WallpaperConfiguration
     @Published private(set) var displayOverrides: [String: WallpaperConfiguration]
     @Published private(set) var displays: [DisplayInfo] = []
     @Published private(set) var generalPreferences: GeneralPreferences
+    @Published private(set) var automationRules: AutomationRules
     @Published private(set) var diagnostics: [String: RendererDiagnostics] = [:]
     @Published var launchAtLoginStatusMessage = "Checking login item status..."
     @Published var errorMessage: String?
@@ -696,11 +798,13 @@ final class WallpaperSettingsStore: ObservableObject {
     var onWallpaperConfigurationChanged: (() -> Void)?
     var onAppearancePreferencesChanged: (() -> Void)?
     var onPowerPreferenceChanged: (() -> Void)?
+    var onAutomationRulesChanged: (() -> Void)?
 
     init() {
         self.defaultConfiguration = Self.loadValue(forKey: defaultConfigurationKey) ?? .default
         self.displayOverrides = Self.loadValue(forKey: displayOverridesKey) ?? [:]
         self.generalPreferences = Self.loadValue(forKey: generalPreferencesKey) ?? .default
+        self.automationRules = Self.loadValue(forKey: automationRulesKey) ?? .default
         refreshLaunchAtLoginStatus()
     }
 
@@ -824,6 +928,18 @@ final class WallpaperSettingsStore: ObservableObject {
         setTheme(theme, for: target)
     }
 
+    func applyPreset(_ preset: BuiltInPreset) {
+        defaultConfiguration = preset.configuration
+        persistDefaultConfiguration()
+        notifyWallpaperChange()
+    }
+
+    func setAutomationRules(_ rules: AutomationRules) {
+        automationRules = rules
+        Self.store(rules, forKey: automationRulesKey)
+        onAutomationRulesChanged?()
+    }
+
     func updateDiagnostic(_ diagnostic: RendererDiagnostics) {
         diagnostics[diagnostic.id] = diagnostic
     }
@@ -908,7 +1024,8 @@ final class WallpaperSettingsStore: ObservableObject {
             let payload = ExportedSettings(
                 defaultConfiguration: defaultConfiguration,
                 displayOverrides: displayOverrides,
-                generalPreferences: generalPreferences
+                generalPreferences: generalPreferences,
+                automationRules: automationRules
             )
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -933,13 +1050,16 @@ final class WallpaperSettingsStore: ObservableObject {
             defaultConfiguration = payload.defaultConfiguration
             displayOverrides = payload.displayOverrides
             generalPreferences = payload.generalPreferences
+            automationRules = payload.automationRules
             persistDefaultConfiguration()
             persistOverrides()
             persistPreferences()
+            Self.store(automationRules, forKey: automationRulesKey)
             refreshLaunchAtLoginStatus()
             setLaunchAtLoginEnabled(payload.generalPreferences.launchAtLoginEnabled)
             onAppearancePreferencesChanged?()
             onPowerPreferenceChanged?()
+            onAutomationRulesChanged?()
             notifyWallpaperChange()
             infoMessage = "Settings imported from \(url.lastPathComponent)."
         } catch {
@@ -1184,7 +1304,11 @@ struct DashboardView: View {
                     height: 280
                 )
 
+                PresetsCard(store: store)
+
                 SystemIntegrationCard(store: store)
+
+                AutomationCard(store: store)
 
                 ConfigurationEditorCard(
                     title: "Shared Profile",
@@ -1475,6 +1599,120 @@ struct HeroCard: View {
         }
         .frame(height: 190)
         .shadow(color: .black.opacity(0.18), radius: 18, y: 10)
+    }
+}
+
+struct PresetsCard: View {
+    @ObservedObject var store: WallpaperSettingsStore
+
+    var body: some View {
+        SurfaceCard {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Quick Presets")
+                    .font(.title3.weight(.semibold))
+
+                HStack(spacing: 12) {
+                    ForEach(BuiltInPreset.allCases) { preset in
+                        let isActive = store.defaultConfiguration == preset.configuration
+                        Button(action: { store.applyPreset(preset) }) {
+                            VStack(spacing: 8) {
+                                Image(systemName: preset.systemImage)
+                                    .font(.system(size: 20, weight: .semibold))
+                                Text(preset.title)
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                isActive ? Color.white.opacity(0.18) : Color.white.opacity(0.07),
+                                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(isActive ? Color.white.opacity(0.4) : Color.clear, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct ThemeTimeRow: View {
+    let label: String
+    @Binding var theme: PlasmaTheme
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Picker("", selection: $theme) {
+                ForEach(PlasmaTheme.allCases) { t in
+                    Text(t.title).tag(t)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 180)
+        }
+    }
+}
+
+struct AutomationCard: View {
+    @ObservedObject var store: WallpaperSettingsStore
+    @State private var rules: AutomationRules
+
+    init(store: WallpaperSettingsStore) {
+        self.store = store
+        self._rules = State(initialValue: store.automationRules)
+    }
+
+    var body: some View {
+        SurfaceCard {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Automation")
+                    .font(.title3.weight(.semibold))
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Switch theme by time of day", isOn: $rules.timeOfDayEnabled)
+                        .font(.headline)
+
+                    if rules.timeOfDayEnabled {
+                        VStack(spacing: 10) {
+                            ThemeTimeRow(label: "Morning  (06–12)", theme: $rules.schedule.morningTheme)
+                            ThemeTimeRow(label: "Afternoon (12–18)", theme: $rules.schedule.afternoonTheme)
+                            ThemeTimeRow(label: "Evening  (18–22)", theme: $rules.schedule.eveningTheme)
+                            ThemeTimeRow(label: "Night    (22–06)", theme: $rules.schedule.nightTheme)
+                        }
+                        .padding(.leading, 4)
+                    }
+                }
+
+                Divider().opacity(0.3)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Switch theme by power source", isOn: $rules.powerAdaptiveEnabled)
+                        .font(.headline)
+
+                    if rules.powerAdaptiveEnabled {
+                        VStack(spacing: 10) {
+                            ThemeTimeRow(label: "On Battery", theme: $rules.onBatteryTheme)
+                            ThemeTimeRow(label: "On Charger", theme: $rules.onChargerTheme)
+                        }
+                        .padding(.leading, 4)
+                    }
+                }
+            }
+        }
+        .onChange(of: rules) { _, newRules in
+            store.setAutomationRules(newRules)
+        }
+        .onReceive(store.$automationRules) { incoming in
+            if incoming != rules { rules = incoming }
+        }
     }
 }
 
@@ -1802,6 +2040,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var lastScreenLayoutSignature: String?
     private var pendingScreenRefresh: DispatchWorkItem?
+    private var automationTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         settingsStore.onWallpaperConfigurationChanged = { [weak self] in
@@ -1814,11 +2053,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsStore.onPowerPreferenceChanged = { [weak self] in
             self?.applyPowerPolicy()
         }
+        settingsStore.onAutomationRulesChanged = { [weak self] in
+            self?.startAutomationTimer()
+        }
 
         configureBackgroundExperience()
         buildMenu()
         refreshDisplaysAndWallpaperWindows()
         observeSystemNotifications()
+        startAutomationTimer()
 
         if settingsStore.generalPreferences.showControlCenterOnLaunch {
             showSettingsWindow(nil)
@@ -1883,6 +2126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func handlePowerStateChange() {
         DispatchQueue.main.async { [weak self] in
             self?.applyPowerPolicy()
+            self?.applyAutomatedTheme()
         }
     }
 
@@ -2038,14 +2282,89 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildStatusMenu() {
         guard let statusItem else { return }
         let menu = NSMenu()
+
         let openItem = menu.addItem(withTitle: "Open Control Center", action: #selector(showSettingsWindow(_:)), keyEquivalent: "")
         openItem.target = self
-        let launchItem = menu.addItem(withTitle: settingsStore.generalPreferences.launchAtLoginEnabled ? "Disable Launch at Login" : "Enable Launch at Login", action: #selector(toggleLaunchAtLoginFromStatusItem), keyEquivalent: "")
-        launchItem.target = self
+
         menu.addItem(NSMenuItem.separator())
+
+        let presetsHeader = NSMenuItem(title: "Presets", action: nil, keyEquivalent: "")
+        presetsHeader.isEnabled = false
+        menu.addItem(presetsHeader)
+        for preset in BuiltInPreset.allCases {
+            let item = NSMenuItem(title: preset.title, action: #selector(applyPresetFromMenu(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = preset.rawValue
+            item.state = settingsStore.defaultConfiguration == preset.configuration ? .on : .off
+            menu.addItem(item)
+        }
+
+        menu.addItem(NSMenuItem.separator())
+
+        let themeItem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
+        let themeMenu = NSMenu()
+        for family in PlasmaThemeFamily.allCases {
+            let familyItem = NSMenuItem(title: family.title, action: nil, keyEquivalent: "")
+            let familyMenu = NSMenu()
+            for theme in PlasmaTheme.themes(for: family) {
+                let item = NSMenuItem(title: theme.title, action: #selector(selectGlobalTheme(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = theme.rawValue
+                item.state = theme == settingsStore.defaultConfiguration.theme ? .on : .off
+                familyMenu.addItem(item)
+            }
+            familyItem.submenu = familyMenu
+            themeMenu.addItem(familyItem)
+        }
+        themeItem.submenu = themeMenu
+        menu.addItem(themeItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let launchItem = menu.addItem(
+            withTitle: settingsStore.generalPreferences.launchAtLoginEnabled ? "Disable Launch at Login" : "Enable Launch at Login",
+            action: #selector(toggleLaunchAtLoginFromStatusItem),
+            keyEquivalent: ""
+        )
+        launchItem.target = self
+
+        menu.addItem(NSMenuItem.separator())
+
         let quitItem = menu.addItem(withTitle: "Quit Neon Drift", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quitItem.target = NSApp
+
         statusItem.menu = menu
+    }
+
+    private func startAutomationTimer() {
+        automationTimer?.invalidate()
+        automationTimer = nil
+        let rules = settingsStore.automationRules
+        guard rules.timeOfDayEnabled || rules.powerAdaptiveEnabled else { return }
+        applyAutomatedTheme()
+        automationTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.applyAutomatedTheme() }
+        }
+    }
+
+    private func applyAutomatedTheme() {
+        let rules = settingsStore.automationRules
+        if rules.powerAdaptiveEnabled {
+            let theme = PowerMonitor.isOnBattery() ? rules.onBatteryTheme : rules.onChargerTheme
+            settingsStore.setTheme(theme, for: .global)
+            return
+        }
+        if rules.timeOfDayEnabled {
+            settingsStore.setTheme(rules.schedule.themeForNow(), for: .global)
+        }
+    }
+
+    @objc private func applyPresetFromMenu(_ sender: NSMenuItem) {
+        guard
+            let raw = sender.representedObject as? String,
+            let preset = BuiltInPreset(rawValue: raw)
+        else { return }
+        settingsStore.applyPreset(preset)
     }
 
     @objc private func toggleLaunchAtLoginFromStatusItem() {
@@ -2207,6 +2526,21 @@ struct RuntimeError: LocalizedError {
 
     init(_ description: String) {
         errorDescription = description
+    }
+}
+
+enum PowerMonitor {
+    static func isOnBattery() -> Bool {
+        let snapshot = IOPSCopyPowerSourcesInfo().takeRetainedValue()
+        let sources = IOPSCopyPowerSourcesList(snapshot).takeRetainedValue() as [CFTypeRef]
+        for source in sources {
+            guard
+                let desc = IOPSGetPowerSourceDescription(snapshot, source)?.takeUnretainedValue() as? [String: Any],
+                let state = desc[kIOPSPowerSourceStateKey] as? String
+            else { continue }
+            return state == kIOPSBatteryPowerValue
+        }
+        return false
     }
 }
 
