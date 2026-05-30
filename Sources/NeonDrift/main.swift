@@ -219,11 +219,25 @@ enum EditorTarget: Hashable {
 
 enum ShaderBundleLocator {
     static var resourceURL: URL? {
-        #if SWIFT_PACKAGE
-        Bundle.module.resourceURL
-        #else
-        Bundle.main.resourceURL
-        #endif
+        // Bundle.module's SPM-generated accessor looks in Bundle.main.bundleURL, which
+        // equals the .app root for packaged apps — but the resource bundle lands in
+        // Contents/Resources/ after packaging. On user machines the hardcoded build-dir
+        // fallback doesn't exist, causing an assertionFailure crash.
+        // Instead, probe both locations manually so this works for both app bundles and
+        // SPM dev builds (.build/…/NeonDrift_NeonDrift.bundle next to the executable).
+        let bundleName = "NeonDrift_NeonDrift.bundle"
+
+        // Packaged app: bundle is in Contents/Resources/
+        if let resourcesURL = Bundle.main.resourceURL {
+            let url = resourcesURL.appendingPathComponent(bundleName, isDirectory: true)
+            if let b = Bundle(url: url) { return b.resourceURL }
+        }
+
+        // SPM dev build: bundle is in the same dir as the executable
+        let url = Bundle.main.bundleURL.appendingPathComponent(bundleName, isDirectory: true)
+        if let b = Bundle(url: url) { return b.resourceURL }
+
+        return Bundle.main.resourceURL
     }
 
     static var shaderDirectoryURL: URL? {
