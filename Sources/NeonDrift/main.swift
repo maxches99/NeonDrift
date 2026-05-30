@@ -361,12 +361,21 @@ struct ThemeRuntimeState {
 
 @MainActor
 final class PlasmaRenderer: NSObject, MTKViewDelegate {
+    struct RendererState {
+        let startTime: CFTimeInterval
+        let familyStartTime: CFTimeInterval
+        let familyTransitionCount: UInt32
+        let mandelbrotEpochStart: CFTimeInterval
+        let mandelbrotEpoch: UInt32
+        let mandelbrotCenter: SIMD2<Float>
+    }
+
     private let displayID: String
     private let displayName: String
     private let commandQueue: MTLCommandQueue
     private let pipelineState: MTLRenderPipelineState
     private weak var view: MTKView?
-    private let startTime = CACurrentMediaTime()
+    private let startTime: CFTimeInterval
     private var frame: UInt32 = 0
     private var familyStartTime = CACurrentMediaTime()
     private var familyTransitionCount: UInt32 = 0
@@ -406,7 +415,21 @@ final class PlasmaRenderer: NSObject, MTKViewDelegate {
 
     var animationSpeed: Float = 1
 
-    init(view: MTKView, displayID: String, displayName: String) throws {
+    func captureState() -> RendererState {
+        RendererState(
+            startTime: startTime,
+            familyStartTime: familyStartTime,
+            familyTransitionCount: familyTransitionCount,
+            mandelbrotEpochStart: mandelbrotEpochStart,
+            mandelbrotEpoch: mandelbrotEpoch,
+            mandelbrotCenter: mandelbrotCenter
+        )
+    }
+
+    init(view: MTKView, displayID: String, displayName: String, inheritedState: RendererState? = nil) throws {
+        let now = CACurrentMediaTime()
+        self.startTime = inheritedState?.startTime ?? now
+
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw RuntimeError("Metal is not available on this Mac.")
         }
@@ -436,6 +459,14 @@ final class PlasmaRenderer: NSObject, MTKViewDelegate {
 
         pipelineState = try device.makeRenderPipelineState(descriptor: descriptor)
         super.init()
+
+        if let inherited = inheritedState {
+            familyStartTime = inherited.familyStartTime
+            familyTransitionCount = inherited.familyTransitionCount
+            mandelbrotEpochStart = inherited.mandelbrotEpochStart
+            mandelbrotEpoch = inherited.mandelbrotEpoch
+            mandelbrotCenter = inherited.mandelbrotCenter
+        }
     }
 
     private static func loadShaderSource() throws -> String {
@@ -1769,6 +1800,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settingsStore = WallpaperSettingsStore()
     private var settingsWindow: NSWindow?
     private var statusItem: NSStatusItem?
+    private var lastScreenLayoutSignature: String?
+    private var pendingScreenRefresh: DispatchWorkItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         settingsStore.onWallpaperConfigurationChanged = { [weak self] in
@@ -1839,7 +1872,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func handleScreenConfigurationChange() {
-        refreshDisplaysAndWallpaperWindows()
+        pendingScreenRefresh?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.refreshDisplaysAndWallpaperWindows()
+        }
+        pendingScreenRefresh = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
     @objc private func handlePowerStateChange() {
@@ -1872,11 +1910,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshDisplaysAndWallpaperWindows() {
-        settingsStore.refreshDisplays(from: NSScreen.screens)
-        recreateWallpaperWindows()
+        let screens = NSScreen.screens
+        settingsStore.refreshDisplays(from: screens)
+
+        let screenLayoutSignature = Self.makeScreenLayoutSignature(from: screens)
+        let shouldRecreateWindows = windows.isEmpty || lastScreenLayoutSignature != screenLayoutSignature
+        lastScreenLayoutSignature = screenLayoutSignature
+
+        if shouldRecreateWindows {
+            recreateWallpaperWindows()
+        } else {
+            applySettingsToRenderers()
+        }
     }
 
     @objc private func recreateWallpaperWindows() {
+        var capturedStates: [String: PlasmaRenderer.RendererState] = [:]
+        for (displayID, renderer) in renderers {
+            capturedStates[displayID] = renderer.captureState()
+        }
+
         windows.values.forEach { $0.close() }
         windows.removeAll()
         renderers.removeAll()
@@ -1890,7 +1943,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let renderer = try PlasmaRenderer(
                     view: view,
                     displayID: displayID,
-                    displayName: screen.localizedName
+                    displayName: screen.localizedName,
+                    inheritedState: capturedStates[displayID]
                 )
                 renderer.onDiagnosticsUpdate = { [weak self] diagnostic in
                     self?.settingsStore.updateDiagnostic(diagnostic)
@@ -2129,6 +2183,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func presentError(_ error: Error) {
         let alert = NSAlert(error: error)
         alert.runModal()
+    }
+
+    private static func makeScreenLayoutSignature(from screens: [NSScreen]) -> String {
+        screens
+            .map { screen in
+                let frame = screen.frame
+                return [
+                    screen.stableDisplayID,
+                    String(Int(frame.origin.x)),
+                    String(Int(frame.origin.y)),
+                    String(Int(frame.size.width)),
+                    String(Int(frame.size.height))
+                ].joined(separator: ":")
+            }
+            .sorted()
+            .joined(separator: "|")
     }
 }
 
