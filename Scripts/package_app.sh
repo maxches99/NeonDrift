@@ -57,7 +57,8 @@ chmod +x "$APP/Contents/MacOS/$APP_NAME"
 
 BUILD_DIR=$(dirname "$(build_product_path "$APP_NAME" "${ARCH_LIST[0]}")")
 shopt -s nullglob
-for bundle in "$BUILD_DIR"/*.bundle; do
+for bundle in "$BUILD_DIR"/"$APP_NAME".bundle "$BUILD_DIR"/"$APP_NAME"_*.bundle; do
+  [[ -d "$bundle" ]] || continue
   cp -R "$bundle" "$APP/Contents/Resources/"
 done
 shopt -u nullglob
