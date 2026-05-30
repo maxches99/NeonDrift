@@ -1,0 +1,18 @@
+constant uint THEME_FAMILY_PLASMA = 0;
+constant uint THEME_FAMILY_FRACTALS = 1;
+constant uint THEME_FAMILY_PATTERNS = 2;
+
+constant uint THEME_VELVET_ROSE = 0;
+constant uint THEME_SAKURA = 1;
+constant uint THEME_BUBBLEGUM = 2;
+constant uint THEME_NEON_ROSE = 3;
+constant uint THEME_MIDNIGHT_BLUSH = 4;
+constant uint THEME_SILVER = 5;
+constant uint THEME_MANDELBROT = 6;
+constant uint THEME_JULIA_BLOOM = 7;
+constant uint THEME_NEWTON_PETALS = 8;
+constant uint THEME_POLAR_LISSAJOUS = 9;
+constant uint THEME_MOIRE_DREAM = 10;
+constant uint THEME_KALEIDO_WAVE = 11;
+constant uint THEME_DOMAIN_COLORING = 12;
+constant uint THEME_APOLLONIAN_TILES = 13;

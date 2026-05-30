@@ -1,0 +1,56 @@
+#include <metal_stdlib>
+using namespace metal;
+
+struct Uniforms {
+    float  time;
+    float2 resolution;
+    float2 mouse;
+    uint   frame;
+    uint   theme;
+    uint   themeFamily;
+    uint   themeVariant;
+    float2 mandelbrotCenter;
+    float  mandelbrotZoom;
+    uint   mandelbrotEpoch;
+    float  familyTime;
+    float  accentPhase;
+};
+
+struct VertexOut {
+    float4 position [[position]];
+};
+
+vertex VertexOut vs_main(uint vertexID [[vertex_id]]) {
+    float2 vertices[3] = {
+        float2(-1.0, -1.0),
+        float2( 3.0, -1.0),
+        float2(-1.0,  3.0)
+    };
+
+    VertexOut out;
+    out.position = float4(vertices[vertexID], 0.0, 1.0);
+    return out;
+}
+
+float3 palette(float t, float3 a, float3 b, float3 c, float3 d) {
+    return a + b * cos(6.28318530 * (c * t + d));
+}
+
+float2 cmul(float2 a, float2 b) {
+    return float2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
+float2 cdiv(float2 a, float2 b) {
+    float denom = max(dot(b, b), 1e-5);
+    return float2(a.x * b.x + a.y * b.y, a.y * b.x - a.x * b.y) / denom;
+}
+
+float2 cpow3(float2 z) {
+    return cmul(cmul(z, z), z);
+}
+
+float2 rotate2D(float2 p, float angle) {
+    float s = sin(angle);
+    float c = cos(angle);
+    return float2(c * p.x - s * p.y, s * p.x + c * p.y);
+}

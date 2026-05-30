@@ -1,0 +1,134 @@
+float4 mandelbrot(float4 pos, constant Uniforms& u) {
+    float2 p = (pos.xy * 2.0 - u.resolution) / min(u.resolution.x, u.resolution.y);
+    float epoch = float(u.mandelbrotEpoch);
+    float angle = 0.035 * sin(u.familyTime * 0.071 + epoch * 1.7 + u.accentPhase * 0.12);
+    float zoom = u.mandelbrotZoom;
+    float2 center = u.mandelbrotCenter;
+
+    float s = sin(angle);
+    float c = cos(angle);
+    float2 z0 = float2(c * p.x - s * p.y, s * p.x + c * p.y) * zoom + center;
+    float2 z = float2(0.0);
+
+    const int maxIter = 128;
+    float iter = 0.0;
+    for (int i = 0; i < maxIter; ++i) {
+        z = float2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + z0;
+        if (dot(z, z) > 16.0) {
+            float logRadius = log(dot(z, z)) * 0.5;
+            float smoothIter = float(i) + 1.0 - log2(max(logRadius, 0.0001));
+            iter = smoothIter / float(maxIter);
+            break;
+        }
+    }
+
+    float escaped = step(0.0001, iter);
+    float band = 0.5 + 0.5 * sin(iter * 72.0 - u.familyTime * 0.85 + u.accentPhase);
+    float halo = pow(smoothstep(0.0, 0.58, iter), 0.85);
+    float3 col = palette(
+        iter * 1.65 + u.familyTime * 0.018 + u.accentPhase * 0.04,
+        float3(0.42, 0.36, 0.40),
+        float3(0.47, 0.36, 0.34),
+        float3(0.92, 0.74, 0.58),
+        float3(0.01, 0.18, 0.34)
+    );
+
+    float3 interior = float3(0.018, 0.015, 0.028);
+    float3 edgeGlow = float3(1.0, 0.62, 0.82) * pow(band, 5.0) * halo;
+    col = mix(interior, col, escaped);
+    col += edgeGlow * escaped;
+    col += float3(0.55, 0.24, 0.38) * exp(-zoom * 1.4) * 0.08 * escaped;
+
+    float vignette = 1.0 - smoothstep(0.18, 1.48, length(p));
+    col *= 0.66 + 0.34 * vignette;
+
+    return float4(saturate(col), 1.0);
+}
+
+float4 juliaBloom(float4 pos, constant Uniforms& u) {
+    float2 p = (pos.xy * 2.0 - u.resolution) / min(u.resolution.x, u.resolution.y);
+    float2 c = float2(
+        -0.78 + 0.12 * sin(u.familyTime * 0.19 + u.accentPhase * 0.4),
+         0.16 + 0.08 * cos(u.familyTime * 0.23 + float(u.themeVariant) * 0.3)
+    );
+
+    float angle = u.familyTime * 0.08 + u.accentPhase * 0.1;
+    float s = sin(angle);
+    float cRot = cos(angle);
+    float2 z = float2(cRot * p.x - s * p.y, s * p.x + cRot * p.y) * 1.45;
+
+    const int maxIter = 96;
+    float iter = 0.0;
+    float trap = 10.0;
+    for (int i = 0; i < maxIter; ++i) {
+        z = cmul(z, z) + c;
+        trap = min(trap, abs(z.x * z.y));
+        float radius2 = dot(z, z);
+        if (radius2 > 24.0) {
+            float smoothIter = float(i) + 1.0 - log2(max(log2(radius2), 0.0001));
+            iter = smoothIter / float(maxIter);
+            break;
+        }
+    }
+
+    float escaped = step(0.0001, iter);
+    float petals = 0.5 + 0.5 * sin(atan2(p.y, p.x) * 8.0 + u.familyTime * 0.7 + iter * 22.0 + u.accentPhase);
+    float orbitGlow = exp(-22.0 * trap);
+    float3 col = palette(
+        iter * 1.2 + petals * 0.35 + u.familyTime * 0.04 + u.accentPhase * 0.08,
+        float3(0.30, 0.18, 0.32),
+        float3(0.60, 0.42, 0.34),
+        float3(0.80, 0.75, 0.55),
+        float3(0.85, 0.10, 0.22)
+    );
+
+    col = mix(float3(0.018, 0.016, 0.030), col, escaped);
+    col += float3(1.0, 0.58, 0.82) * pow(petals, 4.0) * 0.26;
+    col += float3(0.72, 0.94, 1.0) * orbitGlow * 0.85;
+    col *= 0.76 + 0.24 * (1.0 - smoothstep(0.32, 1.65, length(p)));
+
+    return float4(saturate(col), 1.0);
+}
+
+float4 newtonPetals(float4 pos, constant Uniforms& u) {
+    float2 p = (pos.xy * 2.0 - u.resolution) / min(u.resolution.x, u.resolution.y);
+    float2 z = p * 1.9;
+
+    const int maxIter = 28;
+    float accum = 0.0;
+    for (int i = 0; i < maxIter; ++i) {
+        float2 z2 = cmul(z, z);
+        float2 z3 = cmul(z2, z);
+        float2 f = z3 - float2(1.0, 0.0);
+        float2 df = 3.0 * z2;
+        z -= cdiv(f, df);
+        accum += exp(-3.5 * length(f));
+    }
+
+    float2 roots[3] = {
+        float2(1.0, 0.0),
+        float2(-0.5, 0.8660254),
+        float2(-0.5, -0.8660254)
+    };
+
+    float d0 = length(z - roots[0]);
+    float d1 = length(z - roots[1]);
+    float d2 = length(z - roots[2]);
+
+    float3 rootColor = float3(0.95, 0.48, 0.70);
+    if (d1 < d0 && d1 < d2) {
+        rootColor = float3(0.46, 0.92, 0.96);
+    } else if (d2 < d0 && d2 < d1) {
+        rootColor = float3(0.98, 0.82, 0.46);
+    }
+
+    float basin = exp(-6.0 * min(d0, min(d1, d2)));
+    float rings = 0.5 + 0.5 * sin(accum * 2.4 + length(p) * 12.0 - u.familyTime * 1.3 + u.accentPhase);
+    float shimmer = pow(rings, 6.0) * (0.35 + basin);
+    float3 base = mix(float3(0.020, 0.018, 0.030), rootColor * 0.68, saturate(accum / 7.5));
+    float3 col = base + rootColor * shimmer;
+    col += float3(1.0, 0.95, 0.98) * pow(basin, 2.0) * 0.18;
+    col *= 0.74 + 0.26 * (1.0 - smoothstep(0.24, 1.55, length(p)));
+
+    return float4(saturate(col), 1.0);
+}

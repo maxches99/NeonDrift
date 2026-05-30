@@ -1,0 +1,13 @@
+NeonDrift is an animated desktop overlay for macOS.
+
+Important implementation detail for review:
+- The app does not modify the system wallpaper preference.
+- The visual effect is created by rendering a non-interactive window at the desktop layer on each connected screen.
+- The overlay ignores mouse events and stays behind ordinary app windows.
+- No private APIs, screen recording, accessibility access, or input monitoring are used.
+
+Suggested reviewer flow:
+1. Launch the app.
+2. Observe the animated desktop background effect behind desktop icons.
+3. Open the Theme menu and switch between Plasma, Fractals, and Patterns.
+4. Quit the app from the application menu to remove the overlay.
