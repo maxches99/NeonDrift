@@ -261,7 +261,6 @@ enum ShaderBundleLocator {
 struct Uniforms {
     var time: Float = 0
     var resolution: SIMD2<Float> = .zero
-    var mouse: SIMD2<Float> = .zero
     var frame: UInt32 = 0
     var theme: UInt32 = 0
     var themeFamily: UInt32 = 0
@@ -653,7 +652,6 @@ final class PlasmaRenderer: NSObject, MTKViewDelegate {
         var uniforms = Uniforms(
             time: scaledElapsedTime(since: startTime),
             resolution: SIMD2(Float(view.bounds.width) * scale, Float(view.bounds.height) * scale),
-            mouse: .zero,
             frame: frame,
             theme: currentConfiguration.theme.rawValue,
             themeFamily: currentConfiguration.theme.family.rawValue,

@@ -1,4 +1,4 @@
-.DS_Store
+**/.DS_Store
 .build/
 .swiftpm/
 build/
@@ -6,3 +6,4 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 NeonDrift.app/
+NeonDrift-*.zip

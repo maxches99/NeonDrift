@@ -4,7 +4,6 @@ using namespace metal;
 struct Uniforms {
     float  time;
     float2 resolution;
-    float2 mouse;
     uint   frame;
     uint   theme;
     uint   themeFamily;
