@@ -2126,36 +2126,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    @objc private func handleScreenConfigurationChange() {
-        pendingScreenRefresh?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            self?.refreshDisplaysAndWallpaperWindows()
+    @objc nonisolated private func handleScreenConfigurationChange() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pendingScreenRefresh?.cancel()
+            let work = DispatchWorkItem { [weak self] in
+                self?.refreshDisplaysAndWallpaperWindows()
+            }
+            self.pendingScreenRefresh = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
         }
-        pendingScreenRefresh = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
-    @objc private func handlePowerStateChange() {
+    @objc nonisolated private func handlePowerStateChange() {
         DispatchQueue.main.async { [weak self] in
             self?.applyPowerPolicy()
             self?.applyAutomatedTheme()
         }
     }
 
-    @objc private func handleWorkspaceWillSleep() {
-        setAllPaused(true, reason: "Sleeping")
+    @objc nonisolated private func handleWorkspaceWillSleep() {
+        DispatchQueue.main.async { [weak self] in
+            self?.setAllPaused(true, reason: "Sleeping")
+        }
     }
 
-    @objc private func handleWorkspaceDidWake() {
-        recoverAfterWake()
+    @objc nonisolated private func handleWorkspaceDidWake() {
+        DispatchQueue.main.async { [weak self] in
+            self?.recoverAfterWake()
+        }
     }
 
-    @objc private func handleScreensDidSleep() {
-        setAllPaused(true, reason: "Displays sleeping")
+    @objc nonisolated private func handleScreensDidSleep() {
+        DispatchQueue.main.async { [weak self] in
+            self?.setAllPaused(true, reason: "Displays sleeping")
+        }
     }
 
-    @objc private func handleScreensDidWake() {
-        recoverAfterWake()
+    @objc nonisolated private func handleScreensDidWake() {
+        DispatchQueue.main.async { [weak self] in
+            self?.recoverAfterWake()
+        }
     }
 
     private func recoverAfterWake() {
