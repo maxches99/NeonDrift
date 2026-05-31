@@ -324,6 +324,7 @@ enum PlasmaTheme: UInt32, CaseIterable, Codable, Identifiable {
     case monoMist = 16
     case minimalArc = 17
     case ambientHaze = 18
+    case foldDrift = 19
 
     var id: UInt32 { rawValue }
 
@@ -348,6 +349,7 @@ enum PlasmaTheme: UInt32, CaseIterable, Codable, Identifiable {
         case .monoMist: "Mono Mist"
         case .minimalArc: "Minimal Arc"
         case .ambientHaze: "Ambient Haze"
+        case .foldDrift: "Fold Drift"
         }
     }
 
@@ -355,7 +357,7 @@ enum PlasmaTheme: UInt32, CaseIterable, Codable, Identifiable {
         switch self {
         case .velvetRose, .sakura, .bubblegum, .neonRose, .midnightBlush, .silver:
             return .plasma
-        case .mandelbrot, .juliaBloom, .newtonPetals:
+        case .mandelbrot, .juliaBloom, .newtonPetals, .foldDrift:
             return .fractals
         case .polarLissajous, .moireDream, .kaleidoWave, .domainColoring, .apollonianTiles:
             return .patterns
@@ -385,6 +387,7 @@ enum PlasmaTheme: UInt32, CaseIterable, Codable, Identifiable {
         case .monoMist: "Monochrome mist with subtle film grain."
         case .minimalArc: "Minimal arcs and calm spatial motion."
         case .ambientHaze: "Low-contrast ambient gradients for focus."
+        case .foldDrift: "Ray-marched IFS fold geometry drifting through space."
         }
     }
 
@@ -436,6 +439,8 @@ enum PlasmaTheme: UInt32, CaseIterable, Codable, Identifiable {
             return ShaderTuning(palettePreset: .minimal, intensity: 0.88, contrast: 1.0, noiseAmount: 0.01, zoom: 0.9)
         case .ambientHaze:
             return ShaderTuning(palettePreset: .ambient, intensity: 0.86, contrast: 0.88, noiseAmount: 0.02, zoom: 0.92)
+        case .foldDrift:
+            return ShaderTuning(palettePreset: .glass, intensity: 1.0, contrast: 1.05, noiseAmount: 0.04, zoom: 1.0)
         }
     }
 
@@ -451,7 +456,7 @@ enum PlasmaTheme: UInt32, CaseIterable, Codable, Identifiable {
     var defaultConfiguration: WallpaperConfiguration {
         WallpaperConfiguration(
             theme: self,
-            frameRate: 60,
+            frameRate: self == .foldDrift ? 30 : 60,
             animationSpeed: recommendedAnimationSpeed,
             tuning: recommendedTuning
         )

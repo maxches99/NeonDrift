@@ -68,6 +68,7 @@ constant uint THEME_SYNTHWAVE_RUN = 15;
 constant uint THEME_MONO_MIST = 16;
 constant uint THEME_MINIMAL_ARC = 17;
 constant uint THEME_AMBIENT_HAZE = 18;
+constant uint THEME_FOLD_DRIFT = 19;
 
 constant uint PALETTE_ROSE = 0;
 constant uint PALETTE_GLASS = 1;
@@ -539,6 +540,87 @@ float4 apollonianTiles(float4 pos, constant Uniforms& u, StyleParams style) {
     return float4(saturate(col), 1.0);
 }
 
+// ─── Fold Drift ─────────────────────────────────────────────────────────────
+// Based on "RayMarching starting point" by Martijn Steinrucken (The Art of Code)
+// Source: https://www.shadertoy.com/view/7sscW4 — MIT License
+
+#define FOLD_MAX_STEPS 48
+#define FOLD_MAX_DIST  8.0
+#define FOLD_SURF_DIST 0.003
+
+float2x2 foldRot2(float a) {
+    float s = sin(a), c = cos(a);
+    return float2x2(float2(c, -s), float2(s, c));
+}
+
+float foldSDF(float3 p, float t) {
+    float2 uv = p.xz;
+    uv.x = abs(uv.x);
+    float tf = 12.0 + t;
+    float2 q = float2(1, 0);
+    float th = 0.4 * p.y - 0.6 * tf;
+    float m = 1.8;
+    for (float i = 0.0; i < 6.0; i++) {
+        uv -= m * q;
+        th += 0.5 * p.y + 0.05 * tf;
+        uv = foldRot2(th) * uv;
+        uv.x = abs(uv.x);
+        m *= 0.05 * cos(8.0 * length(uv)) + 0.55;
+    }
+    return 0.5 * (length(uv) - 2.0 * m);
+}
+
+float foldRM(float3 ro, float3 rd, float t) {
+    float dO = 0.0;
+    for (int i = 0; i < FOLD_MAX_STEPS; i++) {
+        float dS = foldSDF(ro + rd * dO, t);
+        dO += dS;
+        if (dO > FOLD_MAX_DIST || abs(dS) < FOLD_SURF_DIST) break;
+    }
+    return dO;
+}
+
+float3 foldNormal(float3 p, float t) {
+    float d = foldSDF(p, t);
+    float2 e = float2(0.001, 0);
+    return normalize(d - float3(foldSDF(p - e.xyy, t), foldSDF(p - e.yxy, t), foldSDF(p - e.yyx, t)));
+}
+
+float3 foldRayDir(float2 uv, float3 ro, float3 la, float fl) {
+    float3 f = normalize(la - ro);
+    float3 r = normalize(cross(float3(0, 1, 0), f));
+    return normalize(fl * f + uv.x * r + uv.y * cross(f, r));
+}
+
+float3 foldEnv(float3 dir, float t) {
+    float3 d = normalize(dir);
+    float u = atan2(d.z, d.x) * 0.15915 + 0.5;
+    float v = d.y * 0.5 + 0.5;
+    float ripple = 0.5 + 0.5 * sin(u * 14.0 + t * 0.18) * cos(v * 9.0 - t * 0.24);
+    return mix(float3(0.01, 0.005, 0.04), float3(0.08, 0.03, 0.14), v) + float3(0.12, 0.05, 0.20) * ripple;
+}
+
+float4 foldDrift(float4 pos, constant Uniforms& u, StyleParams style) {
+    float2 uv = (pos.xy * 2.0 - u.resolution) / min(u.resolution.x, u.resolution.y);
+    float t = u.familyTime;
+    float ang = t * 0.05 + u.accentPhase * 0.08;
+    float3 ro = float3(5.5 * cos(ang), 0.5 * sin(t * 0.13), 5.5 * sin(ang));
+    float3 rd = foldRayDir(uv, ro, float3(0, 0, 0), 2.0);
+    float3 col = float3(0);
+    float d = foldRM(ro, rd, t);
+    if (d < FOLD_MAX_DIST) {
+        float3 p = ro + rd * d;
+        float3 n = foldNormal(p, t);
+        float3 r = reflect(rd, n);
+        float dif = max(dot(n, normalize(float3(1, 2, 3))), 0.0);
+        col = float3(dif * 0.4 + 0.3) * foldEnv(r, t) * (1.0 + r.y);
+        col = clamp(col, 0.0, 1.0);
+        float3 e = float3(1.0);
+        col *= palette(r.y, e, e, e, 0.35 * float3(0.0, 0.33, 0.66));
+    }
+    return float4(pow(saturate(col), float3(0.4545)), 1.0);
+}
+
 float4 glassCurrent(float4 pos, constant Uniforms& u, StyleParams style) {
     float2 uv = pos.xy / u.resolution;
     float2 p = (uv - 0.5) * float2(u.resolution.x / max(u.resolution.y, 1.0), 1.0);
@@ -632,6 +714,7 @@ float4 renderTheme(float4 pos, constant Uniforms& u, StyleParams style) {
                 case THEME_MANDELBROT: return mandelbrot(adjustedPos, u, style);
                 case THEME_JULIA_BLOOM: return juliaBloom(adjustedPos, u, style);
                 case THEME_NEWTON_PETALS: return newtonPetals(adjustedPos, u, style);
+                case THEME_FOLD_DRIFT: return foldDrift(pos, u, style);
                 default: return classicPlasma(adjustedPos, u, style);
             }
         case THEME_FAMILY_PATTERNS:
@@ -682,6 +765,9 @@ fragment float4 fs_main(float4 pos [[position]],
     };
 
     float2 uv = pos.xy / u.resolution;
+    if (u.transitionProgress >= 1.0) {
+        return float4(stylize(renderTheme(pos, u, currentStyle).rgb, uv, u, currentStyle), 1.0);
+    }
     float3 currentColor = stylize(renderTheme(pos, u, currentStyle).rgb, uv, u, currentStyle);
     float3 previousColor = stylize(renderTheme(pos, u, previousStyle).rgb, uv, u, previousStyle);
     float blend = smoothstep(0.0, 1.0, u.transitionProgress);
