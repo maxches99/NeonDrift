@@ -38,7 +38,7 @@ struct ShaderTuning: Codable, Equatable {
         palettePreset: .rose,
         intensity: 1,
         contrast: 1,
-        noiseAmount: 0.08,
+        noiseAmount: 0,
         zoom: 1
     )
 }
@@ -402,45 +402,45 @@ enum PlasmaTheme: UInt32, CaseIterable, Codable, Identifiable {
     var recommendedTuning: ShaderTuning {
         switch self {
         case .velvetRose:
-            return ShaderTuning(palettePreset: .rose, intensity: 1.0, contrast: 1.0, noiseAmount: 0.08, zoom: 1.0)
+            return ShaderTuning(palettePreset: .rose, intensity: 1.0, contrast: 1.0, noiseAmount: 0, zoom: 1.0)
         case .sakura:
-            return ShaderTuning(palettePreset: .rose, intensity: 1.05, contrast: 0.95, noiseAmount: 0.05, zoom: 1.0)
+            return ShaderTuning(palettePreset: .rose, intensity: 1.05, contrast: 0.95, noiseAmount: 0, zoom: 1.0)
         case .bubblegum:
-            return ShaderTuning(palettePreset: .rose, intensity: 1.18, contrast: 1.08, noiseAmount: 0.09, zoom: 1.05)
+            return ShaderTuning(palettePreset: .rose, intensity: 1.18, contrast: 1.08, noiseAmount: 0, zoom: 1.05)
         case .neonRose:
-            return ShaderTuning(palettePreset: .synthwave, intensity: 1.22, contrast: 1.15, noiseAmount: 0.10, zoom: 1.0)
+            return ShaderTuning(palettePreset: .synthwave, intensity: 1.22, contrast: 1.15, noiseAmount: 0, zoom: 1.0)
         case .midnightBlush:
-            return ShaderTuning(palettePreset: .ambient, intensity: 0.92, contrast: 1.05, noiseAmount: 0.04, zoom: 1.0)
+            return ShaderTuning(palettePreset: .ambient, intensity: 0.92, contrast: 1.05, noiseAmount: 0, zoom: 1.0)
         case .silver:
-            return ShaderTuning(palettePreset: .monochrome, intensity: 0.96, contrast: 1.12, noiseAmount: 0.03, zoom: 1.0)
+            return ShaderTuning(palettePreset: .monochrome, intensity: 0.96, contrast: 1.12, noiseAmount: 0, zoom: 1.0)
         case .mandelbrot:
-            return ShaderTuning(palettePreset: .rose, intensity: 1.05, contrast: 1.08, noiseAmount: 0.05, zoom: 0.92)
+            return ShaderTuning(palettePreset: .rose, intensity: 1.05, contrast: 1.08, noiseAmount: 0, zoom: 0.92)
         case .juliaBloom:
-            return ShaderTuning(palettePreset: .rose, intensity: 1.1, contrast: 1.0, noiseAmount: 0.06, zoom: 1.0)
+            return ShaderTuning(palettePreset: .rose, intensity: 1.1, contrast: 1.0, noiseAmount: 0, zoom: 1.0)
         case .newtonPetals:
-            return ShaderTuning(palettePreset: .glass, intensity: 1.08, contrast: 1.06, noiseAmount: 0.07, zoom: 1.0)
+            return ShaderTuning(palettePreset: .glass, intensity: 1.08, contrast: 1.06, noiseAmount: 0, zoom: 1.0)
         case .polarLissajous:
-            return ShaderTuning(palettePreset: .minimal, intensity: 1.0, contrast: 1.1, noiseAmount: 0.05, zoom: 1.04)
+            return ShaderTuning(palettePreset: .minimal, intensity: 1.0, contrast: 1.1, noiseAmount: 0, zoom: 1.04)
         case .moireDream:
-            return ShaderTuning(palettePreset: .glass, intensity: 1.08, contrast: 1.18, noiseAmount: 0.12, zoom: 1.0)
+            return ShaderTuning(palettePreset: .glass, intensity: 1.08, contrast: 1.18, noiseAmount: 0, zoom: 1.0)
         case .kaleidoWave:
-            return ShaderTuning(palettePreset: .synthwave, intensity: 1.1, contrast: 1.12, noiseAmount: 0.09, zoom: 1.02)
+            return ShaderTuning(palettePreset: .synthwave, intensity: 1.1, contrast: 1.12, noiseAmount: 0, zoom: 1.02)
         case .domainColoring:
-            return ShaderTuning(palettePreset: .glass, intensity: 1.02, contrast: 1.1, noiseAmount: 0.05, zoom: 0.95)
+            return ShaderTuning(palettePreset: .glass, intensity: 1.02, contrast: 1.1, noiseAmount: 0, zoom: 0.95)
         case .apollonianTiles:
-            return ShaderTuning(palettePreset: .ambient, intensity: 0.96, contrast: 1.14, noiseAmount: 0.08, zoom: 1.0)
+            return ShaderTuning(palettePreset: .ambient, intensity: 0.96, contrast: 1.14, noiseAmount: 0, zoom: 1.0)
         case .glassCurrent:
-            return ShaderTuning(palettePreset: .glass, intensity: 0.95, contrast: 0.92, noiseAmount: 0.03, zoom: 0.96)
+            return ShaderTuning(palettePreset: .glass, intensity: 0.95, contrast: 0.92, noiseAmount: 0, zoom: 0.96)
         case .synthwaveRun:
-            return ShaderTuning(palettePreset: .synthwave, intensity: 1.2, contrast: 1.2, noiseAmount: 0.08, zoom: 1.0)
+            return ShaderTuning(palettePreset: .synthwave, intensity: 1.2, contrast: 1.2, noiseAmount: 0, zoom: 1.0)
         case .monoMist:
-            return ShaderTuning(palettePreset: .monochrome, intensity: 0.9, contrast: 0.9, noiseAmount: 0.02, zoom: 0.94)
+            return ShaderTuning(palettePreset: .monochrome, intensity: 0.9, contrast: 0.9, noiseAmount: 0, zoom: 0.94)
         case .minimalArc:
-            return ShaderTuning(palettePreset: .minimal, intensity: 0.88, contrast: 1.0, noiseAmount: 0.01, zoom: 0.9)
+            return ShaderTuning(palettePreset: .minimal, intensity: 0.88, contrast: 1.0, noiseAmount: 0, zoom: 0.9)
         case .ambientHaze:
-            return ShaderTuning(palettePreset: .ambient, intensity: 0.86, contrast: 0.88, noiseAmount: 0.02, zoom: 0.92)
+            return ShaderTuning(palettePreset: .ambient, intensity: 0.86, contrast: 0.88, noiseAmount: 0, zoom: 0.92)
         case .foldDrift:
-            return ShaderTuning(palettePreset: .glass, intensity: 1.0, contrast: 1.05, noiseAmount: 0.04, zoom: 1.0)
+            return ShaderTuning(palettePreset: .glass, intensity: 1.0, contrast: 1.05, noiseAmount: 0, zoom: 1.0)
         }
     }
 
@@ -651,11 +651,12 @@ final class PlasmaRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        let runtimeState = currentThemeRuntimeState()
-        let transition = themeTransitionProgress
+        let now = CACurrentMediaTime()
+        let runtimeState = currentThemeRuntimeState(now: now)
+        let transition = themeTransitionProgress(now: now)
         let scale = Float(view.drawableSize.width / max(view.bounds.width, 1))
         var uniforms = Uniforms(
-            time: scaledElapsedTime(since: startTime),
+            time: scaledElapsedTime(since: startTime, now: now),
             resolution: SIMD2(Float(view.bounds.width) * scale, Float(view.bounds.height) * scale),
             frame: frame,
             theme: currentConfiguration.theme.rawValue,
@@ -695,11 +696,10 @@ final class PlasmaRenderer: NSObject, MTKViewDelegate {
         emitDiagnostics(force: false)
     }
 
-    private var themeTransitionProgress: Float {
-        let elapsed = CACurrentMediaTime() - transitionStartTime
+    private func themeTransitionProgress(now: CFTimeInterval) -> Float {
+        let elapsed = now - transitionStartTime
         let progress = min(max(elapsed / max(transitionDuration, 0.001), 0), 1)
-        let eased = 1 - pow(1 - progress, 3)
-        return Float(eased)
+        return Float(1 - pow(1 - progress, 3))
     }
 
     private func emitDiagnostics(force: Bool) {
@@ -722,22 +722,22 @@ final class PlasmaRenderer: NSObject, MTKViewDelegate {
                 fps: view?.isPaused == true ? 0 : fps,
                 frameRateLimit: frameRate,
                 isPaused: view?.isPaused == true,
-                status: pauseReason ?? (themeTransitionProgress < 0.999 ? "Transitioning" : "Rendering"),
+                status: pauseReason ?? (themeTransitionProgress(now: now) < 0.999 ? "Transitioning" : "Rendering"),
                 lastUpdate: Date()
             )
         )
     }
 
-    private func currentMandelbrotState() -> (center: SIMD2<Float>, zoom: Float, epoch: UInt32) {
+    private func currentMandelbrotState(now: CFTimeInterval) -> (center: SIMD2<Float>, zoom: Float, epoch: UInt32) {
         guard currentConfiguration.theme.usesAnimatedMandelbrotCamera else {
             return (mandelbrotCenter, 1, mandelbrotEpoch)
         }
 
-        let elapsed = Double(scaledElapsedTime(since: mandelbrotEpochStart))
+        let elapsed = Double(scaledElapsedTime(since: mandelbrotEpochStart, now: now))
         let zoom = Float(2.95 * exp(-elapsed * 0.045))
         if zoom < 0.085 {
             mandelbrotEpoch &+= 1
-            mandelbrotEpochStart = CACurrentMediaTime()
+            mandelbrotEpochStart = now
             mandelbrotCenter = mandelbrotCenters[Int(mandelbrotEpoch) % mandelbrotCenters.count]
             return (mandelbrotCenter, 2.95, mandelbrotEpoch)
         }
@@ -751,9 +751,9 @@ final class PlasmaRenderer: NSObject, MTKViewDelegate {
         mandelbrotCenter = mandelbrotCenters[0]
     }
 
-    private func currentThemeRuntimeState() -> ThemeRuntimeState {
-        let familyTime = scaledElapsedTime(since: familyStartTime)
-        let mandelbrotState = currentMandelbrotState()
+    private func currentThemeRuntimeState(now: CFTimeInterval) -> ThemeRuntimeState {
+        let familyTime = scaledElapsedTime(since: familyStartTime, now: now)
+        let mandelbrotState = currentMandelbrotState(now: now)
         let transitionPhase = Float(familyTransitionCount) * 0.35
         let accentPhase: Float
 
@@ -779,8 +779,8 @@ final class PlasmaRenderer: NSObject, MTKViewDelegate {
         )
     }
 
-    private func scaledElapsedTime(since start: CFTimeInterval) -> Float {
-        Float(CACurrentMediaTime() - start) * animationSpeed
+    private func scaledElapsedTime(since start: CFTimeInterval, now: CFTimeInterval = CACurrentMediaTime()) -> Float {
+        Float(now - start) * animationSpeed
     }
 
     private func resetThemeStateIfNeeded(from oldValue: PlasmaTheme, to newValue: PlasmaTheme) {
